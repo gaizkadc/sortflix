@@ -1,10 +1,10 @@
 # 🎬 Sortflix
 
-Fast, dependency-free movie library organizer and cleaner for **Infuse** (Google Drive, macOS, NAS).
+Fast, dependency-free movie library organizer and cleaner written in Go.
 
-Sortflix traverses your movies folder, flattens unnecessary nested subfolders, moves every movie (video files $\ge$ 100 MB) to its corresponding alphabetical directory (`#`, `a`, `b`, ..., `z`), deletes junk files (loose `.srt`, `.txt`, `.nfo`, scene stills, trailers/samples < 100 MB), and deletes all emptied subdirectories.
+Sortflix traverses your movies folder, flattens unnecessary nested subfolders, moves every movie (video files $\ge$ 100 MB) directly into its corresponding alphabetical directory (`#`, `a`, `b`, ..., `z`), deletes junk files (loose `.srt`, `.txt`, `.nfo`, scene stills, trailers/samples < 100 MB), and removes all emptied subdirectories.
 
-The result is a clean, shallow structure optimized for Infuse browsing:
+The result is a clean, shallow, and predictable library structure:
 ```text
 movies/
 ├── #/

@@ -188,20 +188,36 @@ func TestCollisionHandling(t *testing.T) {
 	}
 }
 
-func TestIgnoredFilesProtection(t *testing.T) {
+func TestAppleDoubleAndStrayFilesCleanup(t *testing.T) {
 	tmpDir := t.TempDir()
+
+	// Folder structure like "The Godfather" with nested bonus folder and ._ files
+	movieFolder := filepath.Join(tmpDir, "t", "The Godfather (1972)")
+	extraFolder := filepath.Join(movieFolder, "Featurettes")
+
+	// Movie moved out earlier or present
+	movieFile := filepath.Join(movieFolder, "The Godfather (1972).mp4")
+	createDummyFile(t, movieFile, 2*1024*1024)
+
+	// 368-byte AppleDouble metadata files
+	appleDouble1 := filepath.Join(movieFolder, "._The Godfather (1972).mp4")
+	appleDouble2 := filepath.Join(movieFolder, "._metadata.xml")
+	dsStore := filepath.Join(movieFolder, ".DS_Store")
+	extraNfo := filepath.Join(extraFolder, "info.nfo")
+	extraAppleDouble := filepath.Join(extraFolder, "._info.nfo")
+
+	createDummyFile(t, appleDouble1, 368)
+	createDummyFile(t, appleDouble2, 368)
+	createDummyFile(t, dsStore, 6148)
+	createDummyFile(t, extraNfo, 200)
+	createDummyFile(t, extraAppleDouble, 368)
 
 	cfg := config.DefaultConfig()
 	cfg.Path = tmpDir
 	cfg.MinSizeMB = 1
 	cfg.DeleteJunk = true
 	cfg.CleanDirs = true
-	cfg.IgnoredFiles = []string{".driveignore", ".nomedia"}
-
-	// Create a protected file and a junk file in a subfolder
-	subDir := filepath.Join(tmpDir, "a", "movie_folder")
-	createDummyFile(t, filepath.Join(subDir, ".driveignore"), 100)
-	createDummyFile(t, filepath.Join(subDir, "junk.txt"), 100)
+	cfg.DryRun = false
 
 	org := New(cfg)
 	plan, err := org.BuildPlan()
@@ -209,10 +225,18 @@ func TestIgnoredFilesProtection(t *testing.T) {
 		t.Fatalf("BuildPlan failed: %v", err)
 	}
 
-	// .driveignore should NOT be in FileDeletions
-	for _, del := range plan.FileDeletions {
-		if filepath.Base(del.Path) == ".driveignore" {
-			t.Errorf(".driveignore must be protected from junk deletion")
-		}
+	if err := org.Execute(plan); err != nil {
+		t.Fatalf("Execute failed: %v", err)
+	}
+
+	// Movie should exist in t/
+	expectedMovie := filepath.Join(tmpDir, "t", "The Godfather (1972).mp4")
+	if _, err := os.Stat(expectedMovie); os.IsNotExist(err) {
+		t.Errorf("expected movie %s to exist", expectedMovie)
+	}
+
+	// The Godfather folder and its subfolder should be completely gone!
+	if _, err := os.Stat(movieFolder); !os.IsNotExist(err) {
+		t.Errorf("expected folder %s to be completely removed, but it still exists", movieFolder)
 	}
 }

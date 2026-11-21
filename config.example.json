@@ -38,8 +38,6 @@
     "Das"
   ],
   "ignored_files": [
-    ".DS_Store",
-    "Thumbs.db",
     ".nomedia",
     ".driveignore"
   ],
@@ -47,3 +45,4 @@
   "dry_run": false,
   "verbose": false
 }
+

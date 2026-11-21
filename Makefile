@@ -1,5 +1,7 @@
 .PHONY: all build test clean run config
 
+unexport GOROOT
+
 BINARY_NAME=sortflix
 BIN_DIR=bin
 CONFIG_FILE=config.json

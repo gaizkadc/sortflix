@@ -33,10 +33,40 @@ func IsVideoFile(filename string) bool {
 	return videoExtensions[ext]
 }
 
-// IsSystemFile checks if the filename is a harmless system file like .DS_Store or Thumbs.db.
+// IsSystemFile checks if the filename is a harmless system/metadata file like .DS_Store, Thumbs.db, or AppleDouble ._ files.
 func IsSystemFile(filename string) bool {
 	base := strings.ToLower(filepath.Base(filename))
-	return base == ".ds_store" || base == "thumbs.db" || strings.HasPrefix(base, "._")
+	return base == ".ds_store" || base == "thumbs.db" || base == "desktop.ini" || strings.HasPrefix(base, "._")
+}
+
+// RemoveFile attempts to remove a file. If permission denied occurs (e.g. read-only rip file),
+// it attempts to make it writable before retrying removal.
+func RemoveFile(path string) error {
+	err := os.Remove(path)
+	if err == nil || os.IsNotExist(err) {
+		return nil
+	}
+	if os.IsPermission(err) {
+		if chmodErr := os.Chmod(path, 0666); chmodErr == nil {
+			return os.Remove(path)
+		}
+	}
+	return err
+}
+
+// RemoveDir attempts to remove an empty directory. If permission denied occurs,
+// it attempts to make it writable before retrying.
+func RemoveDir(dir string) error {
+	err := os.Remove(dir)
+	if err == nil || os.IsNotExist(err) {
+		return nil
+	}
+	if os.IsPermission(err) {
+		if chmodErr := os.Chmod(dir, 0777); chmodErr == nil {
+			return os.Remove(dir)
+		}
+	}
+	return err
 }
 
 // MoveFile moves a file from src to dst. It first attempts an atomic os.Rename.

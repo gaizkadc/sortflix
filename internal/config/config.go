@@ -46,7 +46,7 @@ func DefaultIgnoredArticles() []string {
 // DefaultIgnoredFiles returns files that should never be deleted as junk.
 func DefaultIgnoredFiles() []string {
 	return []string{
-		".DS_Store", "Thumbs.db", ".nomedia", ".driveignore", ".git",
+		".nomedia", ".driveignore", ".git",
 	}
 }
 
@@ -183,7 +183,7 @@ func ParseFlags() (*Config, error) {
 	fs.BoolVar(&flagVerbose, "v", cfg.Verbose, "Alias for -verbose")
 
 	fs.Usage = func() {
-		fmt.Fprintf(os.Stderr, "Sortflix - Movie library organizer & cleaner for Infuse\n\n")
+		fmt.Fprintf(os.Stderr, "Sortflix - Movie library organizer & cleaner\n\n")
 		fmt.Fprintf(os.Stderr, "Usage:\n")
 		fmt.Fprintf(os.Stderr, "  sortflix [options]\n")
 		fmt.Fprintf(os.Stderr, "  sortflix -path /path/to/movies [options]\n")

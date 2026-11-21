@@ -86,10 +86,10 @@ func (o *Organizer) isVideoFile(path string) bool {
 	return o.videoExts[ext]
 }
 
-// isIgnoredFile checks if the filename is protected from deletion (e.g. .DS_Store, .driveignore).
+// isIgnoredFile checks if the filename is explicitly protected from deletion (e.g. .driveignore, .nomedia).
 func (o *Organizer) isIgnoredFile(name string) bool {
 	base := strings.ToLower(name)
-	return o.ignoredFiles[base] || IsSystemFile(base)
+	return o.ignoredFiles[base]
 }
 
 // BuildPlan scans the directory tree and builds an execution plan without modifying files.
@@ -219,50 +219,80 @@ func (o *Organizer) BuildPlan() (*Plan, error) {
 // Execute applies the plan to the filesystem.
 func (o *Organizer) Execute(plan *Plan) error {
 	// Step 1: Execute movie moves
-	for _, move := range plan.Moves {
-		if o.cfg.Verbose {
-			fmt.Printf("[MOVE] %s -> %s (%s)\n",
-				o.relPath(move.Source),
-				o.relPath(move.Destination),
-				FormatBytes(move.Size))
+	movesDone := 0
+	if len(plan.Moves) > 0 {
+		fmt.Printf("  📦 Relocating %d movies to category folders...\n", len(plan.Moves))
+		for i, move := range plan.Moves {
+			if o.cfg.Verbose {
+				fmt.Printf("     [%d/%d] %s -> %s (%s)\n",
+					i+1, len(plan.Moves),
+					o.relPath(move.Source),
+					o.relPath(move.Destination),
+					FormatBytes(move.Size))
+			}
+			if err := MoveFile(move.Source, move.Destination); err != nil {
+				return fmt.Errorf("failed to move '%s' to '%s': %w", move.Source, move.Destination, err)
+			}
+			// Verify file exists at destination
+			if _, err := os.Lstat(move.Destination); err != nil {
+				return fmt.Errorf("move verification failed for '%s': destination does not exist after move: %w", move.Destination, err)
+			}
+			movesDone++
 		}
-		if err := MoveFile(move.Source, move.Destination); err != nil {
-			return fmt.Errorf("failed to move '%s' to '%s': %w", move.Source, move.Destination, err)
-		}
+		fmt.Printf("     ✓ %d movies successfully relocated.\n", movesDone)
 	}
 
 	// Step 2: Delete junk files
-	if o.cfg.DeleteJunk {
-		for _, del := range plan.FileDeletions {
+	filesDeleted := 0
+	if o.cfg.DeleteJunk && len(plan.FileDeletions) > 0 {
+		fmt.Printf("  🗑️  Deleting %d junk files (%s)...\n", len(plan.FileDeletions), FormatBytes(plan.JunkBytesTotal))
+		for i, del := range plan.FileDeletions {
 			if o.cfg.Verbose {
-				fmt.Printf("[DELETE FILE] %s (%s)\n", o.relPath(del.Path), FormatBytes(del.Size))
+				fmt.Printf("     [%d/%d] %s (%s)\n", i+1, len(plan.FileDeletions), o.relPath(del.Path), FormatBytes(del.Size))
 			}
-			if err := os.Remove(del.Path); err != nil && !os.IsNotExist(err) {
+			if err := RemoveFile(del.Path); err != nil && !os.IsNotExist(err) {
 				return fmt.Errorf("failed to delete file '%s': %w", del.Path, err)
 			}
+			filesDeleted++
 		}
+		fmt.Printf("     ✓ %d junk files successfully deleted.\n", filesDeleted)
 	}
 
 	// Step 3: Remove empty subdirectories (bottom-up: longest path first)
-	if o.cfg.CleanDirs {
+	dirsRemoved := 0
+	dirsSkipped := 0
+	if o.cfg.CleanDirs && len(plan.DirDeletions) > 0 {
+		fmt.Printf("  📂 Removing %d empty subdirectories...\n", len(plan.DirDeletions))
 		sort.Slice(plan.DirDeletions, func(i, j int) bool {
 			return len(plan.DirDeletions[i]) > len(plan.DirDeletions[j])
 		})
 
 		for _, dir := range plan.DirDeletions {
+			// Clean any leftover system/metadata files (.DS_Store, Thumbs.db, ._* AppleDouble) before checking
+			cleanSystemFilesInDir(dir)
+
 			empty, err := IsDirEmpty(dir)
 			if err != nil {
+				dirsSkipped++
 				continue
 			}
 			if empty {
-				// Clean any stray system files (.DS_Store, Thumbs.db) before removing dir
-				cleanSystemFilesInDir(dir)
-				if o.cfg.Verbose {
-					fmt.Printf("[DELETE DIR] %s\n", o.relPath(dir))
+				if err := RemoveDir(dir); err == nil {
+					if o.cfg.Verbose {
+						fmt.Printf("     [REMOVED DIR] %s\n", o.relPath(dir))
+					}
+					dirsRemoved++
+				} else {
+					if o.cfg.Verbose {
+						fmt.Printf("     [WARN] Could not remove directory %s: %v\n", o.relPath(dir), err)
+					}
+					dirsSkipped++
 				}
-				_ = os.Remove(dir)
+			} else {
+				dirsSkipped++
 			}
 		}
+		fmt.Printf("     ✓ %d empty directories removed (%d kept or non-empty).\n", dirsRemoved, dirsSkipped)
 	}
 
 	return nil
@@ -376,7 +406,7 @@ func cleanSystemFilesInDir(dir string) {
 	}
 	for _, e := range entries {
 		if IsSystemFile(e.Name()) {
-			_ = os.Remove(filepath.Join(dir, e.Name()))
+			_ = RemoveFile(filepath.Join(dir, e.Name()))
 		}
 	}
 }

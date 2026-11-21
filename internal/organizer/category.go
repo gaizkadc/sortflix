@@ -129,7 +129,7 @@ func stripLeadingArticle(title string, articles []string) string {
 			if len(rest) > 0 {
 				firstChar := rest[0]
 				if firstChar == ' ' || firstChar == '.' || firstChar == '_' || firstChar == '-' {
-					stripped := strings.TrimSpace(strings.TrimPrefix(rest, string(firstChar)))
+					stripped := strings.TrimLeft(rest, " ._-\t")
 					if stripped != "" {
 						return stripped
 					}
