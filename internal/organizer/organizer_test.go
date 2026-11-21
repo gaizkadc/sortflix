@@ -189,3 +189,4 @@ func TestCollisionHandling(t *testing.T) {
 		t.Errorf("dest2 %s does not exist", dest2)
 	}
 }
+

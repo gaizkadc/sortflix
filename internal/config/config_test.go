@@ -37,3 +37,4 @@ func TestConfigValidation(t *testing.T) {
 		t.Fatalf("expected file to not be a directory")
 	}
 }
+

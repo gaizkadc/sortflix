@@ -1,12 +1,12 @@
 # 🎬 Sortflix
 
-Organizador y limpiador de biblioteca de películas para **Infuse** (Google Drive / macOS / NAS).
+Fast, dependency-free movie library organizer and cleaner for **Infuse** (Google Drive, macOS, NAS).
 
-Sortflix recorre tu carpeta de películas, aplana subniveles innecesarios, mueve cada película (archivos de vídeo de más de 100 MB) a su carpeta alfabética correspondiente (`#`, `a`, `b`, ..., `z`), elimina archivos basura residuales (`.txt`, `.srt` sueltos, fotos, `.nfo`, vídeos de muestra/trailers < 100 MB) y suprime todas las subcarpetas que queden vacías.
+Sortflix traverses your movies folder, flattens unnecessary nested subfolders, moves every movie (video files $\ge$ 100 MB) to its corresponding alphabetical directory (`#`, `a`, `b`, ..., `z`), deletes junk files (loose `.srt`, `.txt`, `.nfo`, scene stills, trailers/samples < 100 MB), and deletes all emptied subdirectories.
 
-El resultado es una estructura limpia e ideal para Infuse:
+The result is a clean, shallow structure optimized for Infuse browsing:
 ```text
-pelis/
+movies/
 ├── #/
 │   └── 300.mp4
 ├── a/
@@ -19,111 +19,109 @@ pelis/
 
 ---
 
-## 🚀 Características principales
+## 🚀 Key Features
 
-- **Clasificación alfabética inteligente**:
-  - Películas que empiezan por dígitos van a `#`.
-  - Películas de la `a` a la `z` a sus respectivas carpetas.
-  - Normalización de acentos y diacríticos (ej: `Ágora` ➜ `a`, `Élite` ➜ `e`, `Ñu` ➜ `n`).
-  - Detección y limpieza de prefijos típicos de rips (ej: `[1080p] The Matrix` ➜ `t`, `(2001) A Space Odyssey` ➜ `a`).
-- **Filtrado por tamaño (umbral de vídeo)**:
-  - Considera películas solo aquellos archivos con extensión de vídeo (`.mkv`, `.mp4`, `.avi`, `.mov`, etc.) con un tamaño $\ge$ 100 MB (configurable con `--min-size`).
-- **Limpieza de archivos basura**:
-  - Elimina automáticamente subtítulos no embebidos `.srt`, archivos `.txt`, `.nfo`, imágenes de carátulas o fotogramas `.jpg`/`.png` y vídeos menores al umbral (muestras, trailers o rips corruptos).
-- **Eliminación de subcarpetas vacías**:
-  - Borra todas las subcarpetas que hayan quedado vacías tras mover las películas (ej: `a/american ninja/` es suprimida).
-  - **Protección de carpetas maestras**: `#` y `a`-`z` se preservan siempre.
-- **Protección contra colisiones**:
-  - Si dos películas en carpetas distintas tienen el mismo nombre, renombra de forma segura (ej: `american ninja (1).mp4`) para evitar sobrescrituras accidentales.
-- **Modo Simulación (`--dry-run` / `-n`)**:
-  - Muestra un informe exhaustivo con cada cambio que se realizaría antes de tocar un solo byte.
-- **Confirmación interactiva**:
-  - Pide confirmación al usuario antes de aplicar cambios reales (a menos que se pase `-y` / `--yes`).
-- **Soporte entre volúmenes / Google Drive**:
-  - Movimiento atómico (`os.Rename`) con fallback automático a copia y borrado si se opera entre sistemas de archivos o unidades de red.
+- **Smart Alphabetical Categorization**:
+  - Titles starting with digits or symbols go to `#`.
+  - Titles starting with letters go to `a` through `z`.
+  - Normalizes accented and non-ASCII Latin characters (e.g., `Ágora` ➜ `a`, `Élite` ➜ `e`, `Ñu` ➜ `n`).
+  - Automatically strips release tags and bracketed prefixes before categorization (e.g., `[1080p] The Matrix` ➜ `t`, `(2001) A Space Odyssey` ➜ `a`).
+  - Preserves existing directory casing (e.g., reuses `A` if it already exists).
+- **Size-based Video Filtering**:
+  - Treats files as movies only if they have a recognized video extension (`.mkv`, `.mp4`, `.avi`, `.mov`, etc.) and are $\ge$ 100 MB (customizable with `--min-size`).
+- **Junk File Pruning**:
+  - Automatically deletes non-movie artifacts (`.srt`, `.txt`, `.nfo`, `.jpg`, `.png`, trailers, and samples smaller than the threshold).
+- **Directory Flattening & Empty Folder Pruning**:
+  - Removes nested movie folders (e.g., `a/american ninja/` is removed once `american ninja.mp4` is moved up to `a/`).
+  - **Master Directory Protection**: root `#` and `a`-`z` folders are never deleted.
+- **Collision Protection**:
+  - If two different movie files share the same filename in separate folders, Sortflix automatically renames them safely (e.g., `movie (1).mp4`) without overwriting.
+- **Dry-Run Simulation (`--dry-run` / `-n`)**:
+  - Preview every move, file deletion, and directory removal before touching disk.
+- **Interactive Safety**:
+  - Prompts for confirmation before applying changes (can be bypassed with `-y` / `--yes` in scripts).
+- **Cross-Mount Safe**:
+  - Uses atomic `os.Rename` with transparent fallback to copy + remove across distinct volumes or network mounts.
 
 ---
 
-## 🛠️ Instalación y Compilación
+## 🛠️ Build & Installation
 
-Requisitos: Go 1.22 o superior instalado.
+Requires Go 1.22+.
 
 ```bash
-# Clonar o entrar en el directorio del proyecto
+# Clone or navigate to repository
 cd sortflix
 
-# Ejecutar tests unitarios
+# Run tests
 make test
 
-# Compilar binario en bin/sortflix
+# Build binary into bin/sortflix
 make build
 ```
 
-El binario compilado estará listo en `bin/sortflix`.
-
 ---
 
-## 📖 Modo de Uso
+## 📖 Usage
 
-### 1. Simulación previa (Recomendado)
-Antes de mover o borrar nada, puedes comprobar qué se va a hacer:
+### 1. Dry-Run Simulation (Recommended first)
+Inspect what would be moved or deleted without modifying anything:
 
 ```bash
-./bin/sortflix -path "/Volumes/GoogleDrive/Pelis" --dry-run
+./bin/sortflix -path "/Volumes/GoogleDrive/Movies" --dry-run
 ```
-o de forma abreviada:
+or using short flags:
 ```bash
-./bin/sortflix "/Volumes/GoogleDrive/Pelis" -n
+./bin/sortflix "/Volumes/GoogleDrive/Movies" -n
 ```
 
-### 2. Ejecutar con confirmación interactiva
+### 2. Interactive Execution
 ```bash
-./bin/sortflix -path "/Volumes/GoogleDrive/Pelis"
+./bin/sortflix -path "/Volumes/GoogleDrive/Movies"
 ```
-El programa mostrará el resumen de movimientos y archivos a eliminar y te preguntará:
-`¿Deseas aplicar estos cambios en tu biblioteca? [s/N]: `
+Sortflix will show the plan and prompt:
+`Do you want to apply these changes to your library? [y/N]: `
 
-### 3. Ejecutar automáticamente (sin preguntar)
-Ideal para scripts o automatizaciones:
+### 3. Non-interactive / Scripted Execution
 ```bash
-./bin/sortflix -path "/Volumes/GoogleDrive/Pelis" -y
+./bin/sortflix -path "/Volumes/GoogleDrive/Movies" -y
 ```
 
 ---
 
-## ⚙️ Opciones y Parámetros
+## ⚙️ Command-Line Flags
 
-| Flag | Alias | Por defecto | Descripción |
+| Flag | Short | Default | Description |
 | :--- | :--- | :--- | :--- |
-| `-path` | `-p` | _(requerido)_ | Ruta a la carpeta raíz de películas |
-| `-min-size` | | `100` | Tamaño mínimo en MB para considerar un vídeo como película |
-| `-dry-run` | `-n` | `false` | Modo simulación: no modifica ningún archivo |
-| `-yes` | `-y` | `false` | Aplica los cambios sin pedir confirmación interactiva |
-| `-delete-junk` | | `true` | Elimina archivos no-película (srt, txt, jpg, etc.) |
-| `-clean-dirs` | | `true` | Elimina subcarpetas que queden vacías tras mover vídeos |
-| `-verbose` | `-v` | `false` | Muestra cada archivo y carpeta procesada en detalle |
+| `-path` | `-p` | _(required)_ | Path to root movies folder |
+| `-min-size` | | `100` | Minimum file size in MB for video files |
+| `-dry-run` | `-n` | `false` | Dry-run mode: show plan without making changes |
+| `-yes` | `-y` | `false` | Apply changes without interactive confirmation |
+| `-delete-junk` | | `true` | Delete non-movie files (srt, txt, jpg, nfo, etc.) |
+| `-clean-dirs` | | `true` | Delete subdirectories that become empty |
+| `-verbose` | `-v` | `false` | Display detailed log for every processed item |
 
 ---
 
-## 🧪 Estructura del Proyecto
+## 🧪 Project Layout
 
 ```text
 sortflix/
 ├── cmd/
 │   └── sortflix/
-│       └── main.go          # Punto de entrada CLI, flags y reportes interactivos
+│       └── main.go          # CLI entrypoint, flag parsing, formatted console UI
 ├── internal/
 │   ├── config/
-│   │   ├── config.go        # Definición y validación de parámetros de configuración
-│   │   └── config_test.go   # Tests de configuración
+│   │   ├── config.go        # Configuration model & validation
+│   │   └── config_test.go   # Configuration unit tests
 │   └── organizer/
-│       ├── category.go      # Algoritmo de normalización y categorización (#, a-z)
-│       ├── category_test.go # Tests de categorización y casos especiales
-│       ├── fsutil.go        # Detección de formatos de vídeo, colisiones y utilidades FS
-│       ├── fsutil_test.go   # Tests de utilidades de archivo
-│       ├── organizer.go     # Motor de planificación y ejecución
-│       └── organizer_test.go# Tests de integración extremo a extremo
-├── Makefile                 # Automatización de build, test y clean
-├── go.mod                   # Módulo de Go (cero dependencias externas)
-└── README.md                # Documentación del proyecto
+│       ├── category.go      # Categorization & title normalization engine (#, a-z)
+│       ├── category_test.go # Comprehensive categorization unit tests
+│       ├── fsutil.go        # Video file checks, collision handler, file mover
+│       ├── fsutil_test.go   # File system utility tests
+│       ├── organizer.go     # Core scan, plan, and execution engine
+│       └── organizer_test.go# Full end-to-end integration tests
+├── Makefile                 # Build, test, and clean automation
+├── go.mod                   # Zero external dependencies
+└── README.md                # Documentation
 ```

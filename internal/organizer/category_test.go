@@ -64,3 +64,4 @@ func TestIsCategoryDir(t *testing.T) {
 		}
 	}
 }
+

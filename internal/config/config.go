@@ -22,28 +22,28 @@ type Config struct {
 func ParseFlags() (*Config, error) {
 	cfg := &Config{}
 
-	flag.StringVar(&cfg.Path, "path", "", "Ruta a la carpeta raíz de películas (ej: /Volumes/GoogleDrive/Pelis)")
-	flag.StringVar(&cfg.Path, "p", "", "Alias de -path")
-	flag.Int64Var(&cfg.MinSizeMB, "min-size", 100, "Tamaño mínimo en MB para considerar un archivo como película")
-	flag.BoolVar(&cfg.DryRun, "dry-run", false, "Modo simulación: muestra lo que se haría sin modificar ningún archivo")
-	flag.BoolVar(&cfg.DryRun, "n", false, "Alias de -dry-run")
-	flag.BoolVar(&cfg.Yes, "yes", false, "No pedir confirmación antes de aplicar cambios")
-	flag.BoolVar(&cfg.Yes, "y", false, "Alias de -yes")
-	flag.BoolVar(&cfg.DeleteJunk, "delete-junk", true, "Eliminar archivos no-película (srt, txt, jpg, nfo, etc.)")
-	flag.BoolVar(&cfg.CleanDirs, "clean-dirs", true, "Eliminar subcarpetas vacías tras mover las películas")
-	flag.BoolVar(&cfg.Verbose, "verbose", false, "Mostrar información detallada durante el proceso")
-	flag.BoolVar(&cfg.Verbose, "v", false, "Alias de -verbose")
+	flag.StringVar(&cfg.Path, "path", "", "Path to movies root directory (e.g. /Volumes/GoogleDrive/Movies)")
+	flag.StringVar(&cfg.Path, "p", "", "Alias for -path")
+	flag.Int64Var(&cfg.MinSizeMB, "min-size", 100, "Minimum size in MB for a video file to be considered a movie")
+	flag.BoolVar(&cfg.DryRun, "dry-run", false, "Dry-run mode: show what would be done without modifying any file")
+	flag.BoolVar(&cfg.DryRun, "n", false, "Alias for -dry-run")
+	flag.BoolVar(&cfg.Yes, "yes", false, "Skip confirmation prompt before applying changes")
+	flag.BoolVar(&cfg.Yes, "y", false, "Alias for -yes")
+	flag.BoolVar(&cfg.DeleteJunk, "delete-junk", true, "Delete non-movie files (srt, txt, jpg, nfo, etc.)")
+	flag.BoolVar(&cfg.CleanDirs, "clean-dirs", true, "Delete empty subdirectories after moving movies")
+	flag.BoolVar(&cfg.Verbose, "verbose", false, "Show detailed logging during execution")
+	flag.BoolVar(&cfg.Verbose, "v", false, "Alias for -verbose")
 
 	flag.Usage = func() {
-		fmt.Fprintf(os.Stderr, "Sortflix - Organizador y limpiador de biblioteca de películas para Infuse\n\n")
-		fmt.Fprintf(os.Stderr, "Uso:\n")
-		fmt.Fprintf(os.Stderr, "  sortflix -path /ruta/a/pelis [opciones]\n")
-		fmt.Fprintf(os.Stderr, "  sortflix /ruta/a/pelis [opciones]\n\n")
-		fmt.Fprintf(os.Stderr, "Opciones:\n")
+		fmt.Fprintf(os.Stderr, "Sortflix - Movie library organizer & cleaner for Infuse\n\n")
+		fmt.Fprintf(os.Stderr, "Usage:\n")
+		fmt.Fprintf(os.Stderr, "  sortflix -path /path/to/movies [options]\n")
+		fmt.Fprintf(os.Stderr, "  sortflix /path/to/movies [options]\n\n")
+		fmt.Fprintf(os.Stderr, "Options:\n")
 		flag.PrintDefaults()
-		fmt.Fprintf(os.Stderr, "\nEjemplos:\n")
-		fmt.Fprintf(os.Stderr, "  sortflix -path /Volumes/GoogleDrive/Pelis --dry-run\n")
-		fmt.Fprintf(os.Stderr, "  sortflix -path /Volumes/GoogleDrive/Pelis --min-size 150 -y\n")
+		fmt.Fprintf(os.Stderr, "\nExamples:\n")
+		fmt.Fprintf(os.Stderr, "  sortflix -path /Volumes/GoogleDrive/Movies --dry-run\n")
+		fmt.Fprintf(os.Stderr, "  sortflix -path /Volumes/GoogleDrive/Movies --min-size 150 -y\n")
 	}
 
 	flag.Parse()
@@ -54,25 +54,25 @@ func ParseFlags() (*Config, error) {
 	}
 
 	if cfg.Path == "" {
-		return nil, fmt.Errorf("debes especificar la ruta a la carpeta de películas con -path o como argumento")
+		return nil, fmt.Errorf("you must specify the movies directory path with -path or as a positional argument")
 	}
 
 	absPath, err := filepath.Abs(cfg.Path)
 	if err != nil {
-		return nil, fmt.Errorf("ruta inválida: %w", err)
+		return nil, fmt.Errorf("invalid path: %w", err)
 	}
 	cfg.Path = absPath
 
 	info, err := os.Stat(cfg.Path)
 	if err != nil {
-		return nil, fmt.Errorf("no se pudo acceder a la carpeta '%s': %w", cfg.Path, err)
+		return nil, fmt.Errorf("cannot access directory '%s': %w", cfg.Path, err)
 	}
 	if !info.IsDir() {
-		return nil, fmt.Errorf("la ruta '%s' no es un directorio", cfg.Path)
+		return nil, fmt.Errorf("path '%s' is not a directory", cfg.Path)
 	}
 
 	if cfg.MinSizeMB < 0 {
-		return nil, fmt.Errorf("el tamaño mínimo no puede ser negativo")
+		return nil, fmt.Errorf("minimum size cannot be negative")
 	}
 
 	return cfg, nil

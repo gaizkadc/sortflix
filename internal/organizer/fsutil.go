@@ -49,7 +49,7 @@ func MoveFile(src, dst string) error {
 	// Ensure destination directory exists
 	dstDir := filepath.Dir(dst)
 	if err := os.MkdirAll(dstDir, 0755); err != nil {
-		return fmt.Errorf("error creando directorio '%s': %w", dstDir, err)
+		return fmt.Errorf("failed creating directory '%s': %w", dstDir, err)
 	}
 
 	// Try atomic rename
@@ -58,37 +58,37 @@ func MoveFile(src, dst string) error {
 		return nil
 	}
 
-	// Fallback to copy + remove (useful across different mount points or drives)
+	// Fallback to copy + remove (useful across different mount points or network drives)
 	srcFile, err := os.Open(src)
 	if err != nil {
-		return fmt.Errorf("error abriendo origen '%s': %w", src, err)
+		return fmt.Errorf("failed opening source file '%s': %w", src, err)
 	}
 	defer srcFile.Close()
 
 	srcInfo, err := srcFile.Stat()
 	if err != nil {
-		return fmt.Errorf("error obteniendo info de '%s': %w", src, err)
+		return fmt.Errorf("failed reading source file info '%s': %w", src, err)
 	}
 
 	dstFile, err := os.OpenFile(dst, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, srcInfo.Mode())
 	if err != nil {
-		return fmt.Errorf("error creando destino '%s': %w", dst, err)
+		return fmt.Errorf("failed creating destination file '%s': %w", dst, err)
 	}
 	defer dstFile.Close()
 
 	if _, err := io.Copy(dstFile, srcFile); err != nil {
-		return fmt.Errorf("error copiando de '%s' a '%s': %w", src, dst, err)
+		return fmt.Errorf("failed copying from '%s' to '%s': %w", src, dst, err)
 	}
 
 	if err := dstFile.Sync(); err != nil {
-		return fmt.Errorf("error sincronizando destino '%s': %w", dst, err)
+		return fmt.Errorf("failed syncing destination file '%s': %w", dst, err)
 	}
 
 	srcFile.Close()
 	dstFile.Close()
 
 	if err := os.Remove(src); err != nil {
-		return fmt.Errorf("error eliminando origen tras copia '%s': %w", src, err)
+		return fmt.Errorf("failed removing source file after copy '%s': %w", src, err)
 	}
 
 	return nil

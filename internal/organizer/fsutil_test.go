@@ -118,3 +118,4 @@ func TestMoveFile(t *testing.T) {
 		t.Errorf("content mismatch, got %q, expected %q", string(readBack), string(content))
 	}
 }
+

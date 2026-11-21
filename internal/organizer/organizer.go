@@ -27,17 +27,17 @@ type DeleteFileAction struct {
 
 // Plan represents all changes identified after scanning the movie library.
 type Plan struct {
-	RootDir        string
-	MoviesFound    int
-	MoviesInPlace  int
-	Moves          []MoveAction
-	FileDeletions  []DeleteFileAction
-	DirDeletions   []string
-	JunkBytesTotal int64
+	RootDir          string
+	MoviesFound      int
+	MoviesInPlace    int
+	Moves            []MoveAction
+	FileDeletions    []DeleteFileAction
+	DirDeletions     []string
+	JunkBytesTotal   int64
 	MovieBytesToMove int64
 }
 
-// Organizer orchestrates the scanning, planning, and execution of library cleanup.
+// Organizer orchestrates scanning, planning, and executing the library cleanup.
 type Organizer struct {
 	cfg *config.Config
 }
@@ -69,7 +69,7 @@ func (o *Organizer) BuildPlan() (*Plan, error) {
 	err := filepath.WalkDir(o.cfg.Path, func(path string, d fs.DirEntry, walkErr error) error {
 		if walkErr != nil {
 			if o.cfg.Verbose {
-				fmt.Printf("[ADVERTENCIA] No se pudo acceder a '%s': %v\n", path, walkErr)
+				fmt.Printf("[WARNING] Could not access '%s': %v\n", path, walkErr)
 			}
 			return nil
 		}
@@ -92,7 +92,7 @@ func (o *Organizer) BuildPlan() (*Plan, error) {
 		info, err := d.Info()
 		if err != nil {
 			if o.cfg.Verbose {
-				fmt.Printf("[ADVERTENCIA] Error leyendo info de '%s': %v\n", path, err)
+				fmt.Printf("[WARNING] Error reading info for '%s': %v\n", path, err)
 			}
 			return nil
 		}
@@ -149,7 +149,7 @@ func (o *Organizer) BuildPlan() (*Plan, error) {
 	})
 
 	if err != nil {
-		return nil, fmt.Errorf("error recorriendo biblioteca: %w", err)
+		return nil, fmt.Errorf("error walking library: %w", err)
 	}
 
 	// Calculate which candidate directories will end up empty (bottom-up)
@@ -165,13 +165,13 @@ func (o *Organizer) Execute(plan *Plan) error {
 	// Step 1: Execute movie moves
 	for _, move := range plan.Moves {
 		if o.cfg.Verbose {
-			fmt.Printf("[MOVER] %s -> %s (%s)\n",
+			fmt.Printf("[MOVE] %s -> %s (%s)\n",
 				o.relPath(move.Source),
 				o.relPath(move.Destination),
 				FormatBytes(move.Size))
 		}
 		if err := MoveFile(move.Source, move.Destination); err != nil {
-			return fmt.Errorf("fallo al mover '%s' a '%s': %w", move.Source, move.Destination, err)
+			return fmt.Errorf("failed to move '%s' to '%s': %w", move.Source, move.Destination, err)
 		}
 	}
 
@@ -179,10 +179,10 @@ func (o *Organizer) Execute(plan *Plan) error {
 	if o.cfg.DeleteJunk {
 		for _, del := range plan.FileDeletions {
 			if o.cfg.Verbose {
-				fmt.Printf("[ELIMINAR ARCHIVO] %s (%s)\n", o.relPath(del.Path), FormatBytes(del.Size))
+				fmt.Printf("[DELETE FILE] %s (%s)\n", o.relPath(del.Path), FormatBytes(del.Size))
 			}
 			if err := os.Remove(del.Path); err != nil && !os.IsNotExist(err) {
-				return fmt.Errorf("fallo al eliminar archivo '%s': %w", del.Path, err)
+				return fmt.Errorf("failed to delete file '%s': %w", del.Path, err)
 			}
 		}
 	}
@@ -199,10 +199,10 @@ func (o *Organizer) Execute(plan *Plan) error {
 				continue
 			}
 			if empty {
-				// Clean any stray .DS_Store before removing dir
+				// Clean any stray system files (.DS_Store, Thumbs.db) before removing dir
 				cleanSystemFilesInDir(dir)
 				if o.cfg.Verbose {
-					fmt.Printf("[ELIMINAR CARPETA] %s\n", o.relPath(dir))
+					fmt.Printf("[DELETE DIR] %s\n", o.relPath(dir))
 				}
 				_ = os.Remove(dir)
 			}

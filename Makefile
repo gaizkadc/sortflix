@@ -17,3 +17,4 @@ clean:
 
 run:
 	go run ./cmd/sortflix
+
