@@ -66,8 +66,17 @@ func printHeader(cfg *config.Config) {
 	fmt.Println("================================================================")
 	fmt.Println("   🎬 SORTFLIX - Movie Library Organizer & Cleaner")
 	fmt.Println("================================================================")
+	if cfg.ConfigFile != "" {
+		fmt.Printf("⚙️  Config file:    %s\n", cfg.ConfigFile)
+	}
 	fmt.Printf("📁 Root folder:    %s\n", cfg.Path)
 	fmt.Printf("⚖️  Min video size: %d MB\n", cfg.MinSizeMB)
+	if len(cfg.VideoExtensions) > 0 {
+		fmt.Printf("🎥 Video formats:  %s\n", strings.Join(cfg.VideoExtensions[:min(len(cfg.VideoExtensions), 6)], ", ")+"...")
+	}
+	if cfg.IgnoreArticles {
+		fmt.Println("📖 Ignore articles: Enabled (The, El, La, A, ...)")
+	}
 	if cfg.DryRun {
 		fmt.Println("🛡️  Mode:           DRY-RUN (simulation) - Nothing will be modified")
 	} else {
@@ -169,4 +178,11 @@ func rel(base, target string) string {
 		return target
 	}
 	return relPath
+}
+
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
 }

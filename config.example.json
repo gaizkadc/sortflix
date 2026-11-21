@@ -1,0 +1,49 @@
+{
+  "path": "/path/to/your/movies",
+  "min_size_mb": 100,
+  "video_extensions": [
+    ".mp4",
+    ".mkv",
+    ".avi",
+    ".mov",
+    ".m4v",
+    ".wmv",
+    ".flv",
+    ".webm",
+    ".ts",
+    ".m2ts",
+    ".vob",
+    ".mpg",
+    ".mpeg",
+    ".iso",
+    ".divx",
+    ".rmvb",
+    ".asf"
+  ],
+  "delete_junk": true,
+  "clean_empty_dirs": true,
+  "ignore_articles": false,
+  "ignored_articles": [
+    "The",
+    "A",
+    "An",
+    "El",
+    "La",
+    "Los",
+    "Las",
+    "Le",
+    "Les",
+    "Der",
+    "Die",
+    "Das"
+  ],
+  "ignored_files": [
+    ".DS_Store",
+    "Thumbs.db",
+    ".nomedia",
+    ".driveignore"
+  ],
+  "collision_strategy": "rename",
+  "dry_run": false,
+  "verbose": false
+}

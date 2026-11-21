@@ -32,8 +32,8 @@ func TestOrganizerEndToEnd(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	const minSizeMB = 1
-	const movieSize = 2 * 1024 * 1024  // 2MB (qualifies as movie)
-	const sampleSize = 500 * 1024       // 500KB (junk video)
+	const movieSize = 2 * 1024 * 1024 // 2MB (qualifies as movie)
+	const sampleSize = 500 * 1024      // 500KB (junk video)
 
 	// Structure to test:
 	// root/
@@ -66,14 +66,13 @@ func TestOrganizerEndToEnd(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	cfg := &config.Config{
-		Path:       tmpDir,
-		MinSizeMB:  minSizeMB,
-		DeleteJunk: true,
-		CleanDirs:  true,
-		DryRun:     false,
-		Verbose:    false,
-	}
+	cfg := config.DefaultConfig()
+	cfg.Path = tmpDir
+	cfg.MinSizeMB = minSizeMB
+	cfg.DeleteJunk = true
+	cfg.CleanDirs = true
+	cfg.DryRun = false
+	cfg.Verbose = false
 
 	org := New(cfg)
 
@@ -152,14 +151,13 @@ func TestCollisionHandling(t *testing.T) {
 	createDummyFile(t, file1, movieSize)
 	createDummyFile(t, file2, movieSize)
 
-	cfg := &config.Config{
-		Path:       tmpDir,
-		MinSizeMB:  1,
-		DeleteJunk: true,
-		CleanDirs:  true,
-		DryRun:     false,
-		Verbose:    false,
-	}
+	cfg := config.DefaultConfig()
+	cfg.Path = tmpDir
+	cfg.MinSizeMB = 1
+	cfg.DeleteJunk = true
+	cfg.CleanDirs = true
+	cfg.DryRun = false
+	cfg.Verbose = false
 
 	org := New(cfg)
 	plan, err := org.BuildPlan()
@@ -190,3 +188,31 @@ func TestCollisionHandling(t *testing.T) {
 	}
 }
 
+func TestIgnoredFilesProtection(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	cfg := config.DefaultConfig()
+	cfg.Path = tmpDir
+	cfg.MinSizeMB = 1
+	cfg.DeleteJunk = true
+	cfg.CleanDirs = true
+	cfg.IgnoredFiles = []string{".driveignore", ".nomedia"}
+
+	// Create a protected file and a junk file in a subfolder
+	subDir := filepath.Join(tmpDir, "a", "movie_folder")
+	createDummyFile(t, filepath.Join(subDir, ".driveignore"), 100)
+	createDummyFile(t, filepath.Join(subDir, "junk.txt"), 100)
+
+	org := New(cfg)
+	plan, err := org.BuildPlan()
+	if err != nil {
+		t.Fatalf("BuildPlan failed: %v", err)
+	}
+
+	// .driveignore should NOT be in FileDeletions
+	for _, del := range plan.FileDeletions {
+		if filepath.Base(del.Path) == ".driveignore" {
+			t.Errorf(".driveignore must be protected from junk deletion")
+		}
+	}
+}

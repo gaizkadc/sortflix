@@ -39,12 +39,57 @@ type Plan struct {
 
 // Organizer orchestrates scanning, planning, and executing the library cleanup.
 type Organizer struct {
-	cfg *config.Config
+	cfg          *config.Config
+	videoExts    map[string]bool
+	ignoredFiles map[string]bool
+	catOpts      CategoryOptions
 }
 
 // New creates a new Organizer instance with the given configuration.
 func New(cfg *config.Config) *Organizer {
-	return &Organizer{cfg: cfg}
+	org := &Organizer{
+		cfg:          cfg,
+		videoExts:    make(map[string]bool),
+		ignoredFiles: make(map[string]bool),
+		catOpts: CategoryOptions{
+			IgnoreArticles:  cfg.IgnoreArticles,
+			IgnoredArticles: cfg.IgnoredArticles,
+		},
+	}
+
+	// Index configured video extensions
+	for _, ext := range cfg.VideoExtensions {
+		clean := strings.ToLower(strings.TrimSpace(ext))
+		if clean == "" {
+			continue
+		}
+		if !strings.HasPrefix(clean, ".") {
+			clean = "." + clean
+		}
+		org.videoExts[clean] = true
+	}
+
+	// Index ignored files (case-insensitive)
+	for _, file := range cfg.IgnoredFiles {
+		clean := strings.ToLower(strings.TrimSpace(file))
+		if clean != "" {
+			org.ignoredFiles[clean] = true
+		}
+	}
+
+	return org
+}
+
+// isVideoFile checks if the path has one of the configured video extensions.
+func (o *Organizer) isVideoFile(path string) bool {
+	ext := strings.ToLower(filepath.Ext(path))
+	return o.videoExts[ext]
+}
+
+// isIgnoredFile checks if the filename is protected from deletion (e.g. .DS_Store, .driveignore).
+func (o *Organizer) isIgnoredFile(name string) bool {
+	base := strings.ToLower(name)
+	return o.ignoredFiles[base] || IsSystemFile(base)
 }
 
 // BuildPlan scans the directory tree and builds an execution plan without modifying files.
@@ -100,11 +145,11 @@ func (o *Organizer) BuildPlan() (*Plan, error) {
 		parentDir := filepath.Dir(path)
 		dirFilesRemaining[parentDir]++
 
-		isMovie := IsVideoFile(path) && info.Size() >= minSizeBytes
+		isMovie := o.isVideoFile(path) && info.Size() >= minSizeBytes
 
 		if isMovie {
 			plan.MoviesFound++
-			cat := GetCategory(filepath.Base(path))
+			cat := GetCategoryWithOptions(filepath.Base(path), o.catOpts)
 			catDirName := o.resolveCategoryDirName(cat, categoryDirs)
 			targetDir := filepath.Join(o.cfg.Path, catDirName)
 			targetFile := filepath.Join(targetDir, filepath.Base(path))
@@ -118,6 +163,12 @@ func (o *Organizer) BuildPlan() (*Plan, error) {
 			// Handle destination collision
 			finalDest := targetFile
 			if reservedDests[finalDest] || o.destinationExists(finalDest, path) {
+				if o.cfg.CollisionStrategy == "skip" {
+					if o.cfg.Verbose {
+						fmt.Printf("[SKIP COLLISION] Destination exists: %s\n", targetFile)
+					}
+					return nil
+				}
 				finalDest = o.resolvePlanCollision(targetFile, reservedDests)
 			}
 			reservedDests[finalDest] = true
@@ -133,7 +184,12 @@ func (o *Organizer) BuildPlan() (*Plan, error) {
 			// This file will move out of parentDir
 			dirFilesRemaining[parentDir]--
 		} else {
-			// Non-movie file: check if it should be deleted
+			// Non-movie file: check if it's protected or junk
+			if o.isIgnoredFile(filepath.Base(path)) {
+				// Don't mark as junk, but note it stays in directory
+				return nil
+			}
+
 			if o.cfg.DeleteJunk {
 				plan.FileDeletions = append(plan.FileDeletions, DeleteFileAction{
 					Path: path,

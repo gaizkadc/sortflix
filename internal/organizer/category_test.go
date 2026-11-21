@@ -40,6 +40,40 @@ func TestGetCategory(t *testing.T) {
 	}
 }
 
+func TestGetCategoryWithIgnoredArticles(t *testing.T) {
+	opts := CategoryOptions{
+		IgnoreArticles:  true,
+		IgnoredArticles: []string{"The", "A", "An", "El", "La", "Los", "Las"},
+	}
+
+	tests := []struct {
+		name     string
+		filename string
+		expected string
+	}{
+		{"english 'The'", "The Matrix.mkv", "m"},
+		{"english 'The' with dot", "The.Matrix.1999.1080p.mkv", "m"},
+		{"english 'A'", "A Beautiful Mind.mp4", "b"},
+		{"english 'An'", "An Education.mkv", "e"},
+		{"spanish 'El'", "El Padrino.avi", "p"},
+		{"spanish 'La'", "La La Land.mp4", "l"},
+		{"spanish 'Los'", "Los Otros.mkv", "o"},
+		{"spanish 'Las'", "Las Brujas de Zugarramurdi.mkv", "b"},
+		{"leading tag then article", "[1080p] The Godfather.mkv", "g"},
+		{"word starting with article letters", "Theme Park.mp4", "t"},
+		{"spanish word 'Elena'", "Elena.mp4", "e"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := GetCategoryWithOptions(tt.filename, opts)
+			if got != tt.expected {
+				t.Errorf("GetCategoryWithOptions(%q) = %q, expected %q", tt.filename, got, tt.expected)
+			}
+		})
+	}
+}
+
 func TestIsCategoryDir(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -64,4 +98,3 @@ func TestIsCategoryDir(t *testing.T) {
 		}
 	}
 }
-

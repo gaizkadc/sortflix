@@ -38,9 +38,22 @@ func IsCategoryDir(name string) bool {
 	return false
 }
 
-// GetCategory returns the category name ("#" or "a"-"z") for a given movie filename.
-// It strips file extension, leading tags like [1080p] or (2001), brackets, spaces, and normalizes accents.
+// CategoryOptions configures how movie categories are determined.
+type CategoryOptions struct {
+	IgnoreArticles  bool
+	IgnoredArticles []string
+}
+
+// GetCategory returns the category name ("#" or "a"-"z") for a given movie filename,
+// using default categorization rules without article stripping.
 func GetCategory(filename string) string {
+	return GetCategoryWithOptions(filename, CategoryOptions{})
+}
+
+// GetCategoryWithOptions returns the category name ("#" or "a"-"z") for a given movie filename.
+// It strips file extension, leading tags like [1080p] or (2001), brackets, spaces,
+// optionally strips leading articles (e.g. "The", "El"), and normalizes accents.
+func GetCategoryWithOptions(filename string, opts CategoryOptions) string {
 	// Strip directory and extension first so .mp4 does not count as title characters
 	base := filepath.Base(filename)
 	ext := filepath.Ext(base)
@@ -64,6 +77,11 @@ func GetCategory(filename string) string {
 	// Remove leading year in parentheses if followed by title, e.g. "(2001) A Space Odyssey"
 	if leadingYearTagRegex.MatchString(clean) {
 		clean = strings.TrimSpace(leadingYearTagRegex.ReplaceAllString(clean, ""))
+	}
+
+	// Strip leading articles if configured (e.g. "The Matrix" -> "Matrix", "El Padrino" -> "Padrino")
+	if opts.IgnoreArticles && len(opts.IgnoredArticles) > 0 {
+		clean = stripLeadingArticle(clean, opts.IgnoredArticles)
 	}
 
 	// Skip leading punctuation, brackets, quotes, etc.
@@ -94,6 +112,32 @@ func GetCategory(filename string) string {
 	}
 
 	return "#"
+}
+
+// stripLeadingArticle checks if clean starts with any configured article followed by a delimiter
+// (space, dot, underscore, dash) and removes it.
+func stripLeadingArticle(title string, articles []string) string {
+	titleLower := strings.ToLower(title)
+	for _, art := range articles {
+		art = strings.TrimSpace(art)
+		if art == "" {
+			continue
+		}
+		artLower := strings.ToLower(art)
+		if strings.HasPrefix(titleLower, artLower) {
+			rest := title[len(art):]
+			if len(rest) > 0 {
+				firstChar := rest[0]
+				if firstChar == ' ' || firstChar == '.' || firstChar == '_' || firstChar == '-' {
+					stripped := strings.TrimSpace(strings.TrimPrefix(rest, string(firstChar)))
+					if stripped != "" {
+						return stripped
+					}
+				}
+			}
+		}
+	}
+	return title
 }
 
 // normalizeRune converts uppercase and accented letters to lowercase ASCII a-z.
