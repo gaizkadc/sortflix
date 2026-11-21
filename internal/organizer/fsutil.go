@@ -1,0 +1,130 @@
+package organizer
+
+import (
+	"fmt"
+	"io"
+	"os"
+	"path/filepath"
+	"strings"
+)
+
+// Supported video file extensions (lowercase with leading dot).
+var videoExtensions = map[string]bool{
+	".mp4":  true,
+	".mkv":  true,
+	".avi":  true,
+	".mov":  true,
+	".m4v":  true,
+	".wmv":  true,
+	".flv":  true,
+	".webm": true,
+	".ts":   true,
+	".vob":  true,
+	".mpg":  true,
+	".mpeg": true,
+	".m2ts": true,
+	".ogv":  true,
+	".divx": true,
+}
+
+// IsVideoFile checks if the given file has a recognised video extension.
+func IsVideoFile(filename string) bool {
+	ext := strings.ToLower(filepath.Ext(filename))
+	return videoExtensions[ext]
+}
+
+// IsSystemFile checks if the filename is a harmless system file like .DS_Store or Thumbs.db.
+func IsSystemFile(filename string) bool {
+	base := strings.ToLower(filepath.Base(filename))
+	return base == ".ds_store" || base == "thumbs.db" || strings.HasPrefix(base, "._")
+}
+
+// MoveFile moves a file from src to dst. It first attempts an atomic os.Rename.
+// If cross-device or permission issues occur, it falls back to copy + remove.
+func MoveFile(src, dst string) error {
+	if src == dst {
+		return nil
+	}
+
+	// Ensure destination directory exists
+	dstDir := filepath.Dir(dst)
+	if err := os.MkdirAll(dstDir, 0755); err != nil {
+		return fmt.Errorf("error creando directorio '%s': %w", dstDir, err)
+	}
+
+	// Try atomic rename
+	err := os.Rename(src, dst)
+	if err == nil {
+		return nil
+	}
+
+	// Fallback to copy + remove (useful across different mount points or drives)
+	srcFile, err := os.Open(src)
+	if err != nil {
+		return fmt.Errorf("error abriendo origen '%s': %w", src, err)
+	}
+	defer srcFile.Close()
+
+	srcInfo, err := srcFile.Stat()
+	if err != nil {
+		return fmt.Errorf("error obteniendo info de '%s': %w", src, err)
+	}
+
+	dstFile, err := os.OpenFile(dst, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, srcInfo.Mode())
+	if err != nil {
+		return fmt.Errorf("error creando destino '%s': %w", dst, err)
+	}
+	defer dstFile.Close()
+
+	if _, err := io.Copy(dstFile, srcFile); err != nil {
+		return fmt.Errorf("error copiando de '%s' a '%s': %w", src, dst, err)
+	}
+
+	if err := dstFile.Sync(); err != nil {
+		return fmt.Errorf("error sincronizando destino '%s': %w", dst, err)
+	}
+
+	srcFile.Close()
+	dstFile.Close()
+
+	if err := os.Remove(src); err != nil {
+		return fmt.Errorf("error eliminando origen tras copia '%s': %w", src, err)
+	}
+
+	return nil
+}
+
+// ResolveCollision generates an alternative path if dst already exists,
+// appending " (1)", " (2)", etc. before the extension.
+func ResolveCollision(dst string) string {
+	if _, err := os.Lstat(dst); os.IsNotExist(err) {
+		return dst
+	}
+
+	ext := filepath.Ext(dst)
+	dir := filepath.Dir(dst)
+	base := strings.TrimSuffix(filepath.Base(dst), ext)
+
+	for i := 1; ; i++ {
+		candidate := filepath.Join(dir, fmt.Sprintf("%s (%d)%s", base, i, ext))
+		if _, err := os.Lstat(candidate); os.IsNotExist(err) {
+			return candidate
+		}
+	}
+}
+
+// IsDirEmpty checks if a directory contains any files or folders, ignoring harmless system files.
+func IsDirEmpty(dirPath string) (bool, error) {
+	entries, err := os.ReadDir(dirPath)
+	if err != nil {
+		return false, err
+	}
+
+	for _, entry := range entries {
+		if !IsSystemFile(entry.Name()) {
+			return false, nil
+		}
+	}
+
+	return true, nil
+}
