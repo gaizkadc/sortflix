@@ -185,3 +185,10 @@ sortflix/
 ├── go.mod                   # Zero external dependencies (Go standard library)
 └── README.md                # Documentation
 ```
+
+---
+
+## 🤖 Acknowledgments
+
+Built with **[Google Antigravity](https://deepmind.google)**.
+
